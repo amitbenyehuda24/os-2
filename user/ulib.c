@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "kernel/fcntl.h"
+#include "kernel/syscall.h"
 #include "user/user.h"
 
 //
@@ -144,4 +145,21 @@ void *
 memcpy(void *dst, const void *src, uint n)
 {
   return memmove(dst, src, n);
+}
+
+void
+lcg_srand(uint seed)
+{
+  register uint64 a0 asm("a0") = (uint64)seed;
+  register uint64 a7 asm("a7") = SYS_lcg_srand;
+  asm volatile("ecall" : "+r"(a0) : "r"(a7) : "memory");
+}
+
+uint
+lcg_rand(void)
+{
+  register uint64 a0 asm("a0");
+  register uint64 a7 asm("a7") = SYS_lcg_rand;
+  asm volatile("ecall" : "=r"(a0) : "r"(a7) : "memory");
+  return (uint)a0;
 }
