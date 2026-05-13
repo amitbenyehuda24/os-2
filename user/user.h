@@ -22,6 +22,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+void lcg_srand(uint seed); // Prototype for the user-side srand function 
+uint lcg_rand(void);      // Prototype for the user-side rand function
 
 // ulib.c
 int stat(const char*, struct stat*);
