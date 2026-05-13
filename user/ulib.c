@@ -145,15 +145,3 @@ memcpy(void *dst, const void *src, uint n)
 {
   return memmove(dst, src, n);
 }
-// User-level implementation that triggers the syscall 
-void 
-lcg_srand(uint seed) 
-{
-  // This will call the system call we defined via usys.pl
-}
-
-uint 
-lcg_rand(void) 
-{
-  // This will call the system call and return its value
-}
