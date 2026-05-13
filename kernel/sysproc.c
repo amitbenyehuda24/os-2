@@ -6,6 +6,41 @@
 #include "spinlock.h"
 #include "proc.h"
 
+#define MAX_ISRAELI_LOCKS 15
+#define MAX_QUEUE 16
+
+// Structure for the Israeli lock
+struct israeli_lock {
+  struct spinlock lk;   // Spinlock to protect internal lock state
+  int active;           // 1 if the lock is created and valid, 0 otherwise
+  int locked;           // 1 if currently acquired, 0 if available
+  int favoritism;       // Favoritism coefficient (0-100)
+  int owner_pid;        // PID of the process currently holding the lock
+  
+  // Fixed-size FIFO queue for waiting processes
+  int queue[MAX_QUEUE]; // Array to store PIDs of waiting processes
+  int head;             // Index of the front of the queue
+  int tail;             // Index where the next process will be inserted
+  int wait_count;       // Number of processes currently in the queue
+};
+
+// Global array of Israeli locks
+struct israeli_lock ilocks[MAX_ISRAELI_LOCKS];
+
+// Initialize the array of Israeli locks when the kernel starts
+void israeli_init(void) {
+  for(int i = 0; i < MAX_ISRAELI_LOCKS; i++) {
+    initlock(&ilocks[i].lk, "israeli_lock");
+    ilocks[i].active = 0;
+    ilocks[i].locked = 0;
+    ilocks[i].favoritism = 0;
+    ilocks[i].owner_pid = 0;
+    ilocks[i].head = 0;
+    ilocks[i].tail = 0;
+    ilocks[i].wait_count = 0;
+  }
+}
+
 uint64
 sys_exit(void)
 {
@@ -139,4 +174,22 @@ uint64
 sys_lcg_rand(void)
 {
   return lcg_rand();
+}
+
+// Set the group ID of the current process
+uint64 sys_setgid(void) {
+  int gid;
+  
+  // Retrieve the first argument
+  argint(0, &gid);
+  
+  // Set the gid for the current process
+  myproc()->gid = gid;
+  
+  return 0;
+}
+
+// Get the group ID of the current process
+uint64 sys_getgid(void) {
+  return myproc()->gid;
 }

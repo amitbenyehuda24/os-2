@@ -146,6 +146,8 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->gid = -1; // Initialize with -1 to indicate no group is set yet
+
   return p;
 }
 

@@ -30,6 +30,7 @@ main()
     virtio_disk_init(); // emulated hard disk
 
     lcgrandinit(); // initialize the PRNG
+    israeli_init(); // Initialize the global array of Israeli locks
     
 
     userinit();      // first user process

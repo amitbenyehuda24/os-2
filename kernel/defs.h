@@ -135,6 +135,7 @@ char*           strncpy(char*, const char*, int);
 
 // sysproc.c
 void            lcgrandinit(void);
+void            israeli_init(void);
 
 // syscall.c
 void            argint(int, int*);

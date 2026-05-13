@@ -103,6 +103,8 @@ extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_lcg_srand(void);
 extern uint64 sys_lcg_rand(void);
+extern uint64 sys_setgid(void);
+extern uint64 sys_getgid(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -130,6 +132,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_lcg_srand] sys_lcg_srand,
 [SYS_lcg_rand]  sys_lcg_rand,
+[SYS_setgid]   sys_setgid,
+[SYS_getgid]   sys_getgid,
 };
 
 void
