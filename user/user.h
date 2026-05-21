@@ -47,3 +47,6 @@ int israeli_create(int favoritism);
 int israeli_acquire(int lock_id);
 int israeli_release(int lock_id);
 int israeli_destroy(int lock_id);
+int reset_scores(void);
+int add_score(int team_id, int points);
+int get_score(int team_id);

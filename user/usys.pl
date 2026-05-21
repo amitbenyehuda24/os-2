@@ -42,4 +42,7 @@ entry("israeli_create");
 entry("israeli_acquire");
 entry("israeli_release");
 entry("israeli_destroy");
+entry("reset_scores");
+entry("add_score");
+entry("get_score");
 

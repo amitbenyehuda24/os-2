@@ -325,3 +325,41 @@ uint64 sys_israeli_release(void) {
   release(&ilock->lk);
   return 0;
 }
+
+// Relay Race Scoring System
+#define MAX_TEAMS 10
+int team_scores[MAX_TEAMS];
+
+// Reset all scores (useful for running multiple races)
+uint64 sys_reset_scores(void) {
+  for(int i = 0; i < MAX_TEAMS; i++) {
+    team_scores[i] = 0;
+  }
+  return 0;
+}
+
+// Add points to a team's score and return the new score
+uint64 sys_add_score(void) {
+  int team_id;
+  int points;
+  
+  argint(0, &team_id);
+  argint(1, &points);
+  
+  if (team_id >= 0 && team_id < MAX_TEAMS) {
+    team_scores[team_id] += points;
+    return team_scores[team_id];
+  }
+  return -1;
+}
+
+// Get a team's current score
+uint64 sys_get_score(void) {
+  int team_id;
+  argint(0, &team_id);
+  
+  if (team_id >= 0 && team_id < MAX_TEAMS) {
+    return team_scores[team_id];
+  }
+  return -1;
+}
