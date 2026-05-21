@@ -38,3 +38,8 @@ entry("sleep");
 entry("uptime");
 entry("setgid");
 entry("getgid");
+entry("israeli_create");
+entry("israeli_acquire");
+entry("israeli_release");
+entry("israeli_destroy");
+

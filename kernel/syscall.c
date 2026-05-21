@@ -105,6 +105,10 @@ extern uint64 sys_lcg_srand(void);
 extern uint64 sys_lcg_rand(void);
 extern uint64 sys_setgid(void);
 extern uint64 sys_getgid(void);
+extern uint64 sys_israeli_create(void);
+extern uint64 sys_israeli_acquire(void);
+extern uint64 sys_israeli_release(void);
+extern uint64 sys_israeli_destroy(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -134,6 +138,10 @@ static uint64 (*syscalls[])(void) = {
 [SYS_lcg_rand]  sys_lcg_rand,
 [SYS_setgid]   sys_setgid,
 [SYS_getgid]   sys_getgid,
+[SYS_israeli_create]   sys_israeli_create,
+[SYS_israeli_acquire]  sys_israeli_acquire,
+[SYS_israeli_release]  sys_israeli_release,
+[SYS_israeli_destroy]  sys_israeli_destroy,
 };
 
 void

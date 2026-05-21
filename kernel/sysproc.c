@@ -9,32 +9,28 @@
 #define MAX_ISRAELI_LOCKS 15
 #define MAX_QUEUE 16
 
-// Structure for the Israeli lock
 struct israeli_lock {
-  struct spinlock lk;   // Spinlock to protect internal lock state
-  int active;           // 1 if the lock is created and valid, 0 otherwise
-  int locked;           // 1 if currently acquired, 0 if available
-  int favoritism;       // Favoritism coefficient (0-100)
-  int owner_pid;        // PID of the process currently holding the lock
+  struct spinlock lk;
+  int active;
+  int locked;
+  int favoritism;
+  struct proc *owner; 
   
-  // Fixed-size FIFO queue for waiting processes
-  int queue[MAX_QUEUE]; // Array to store PIDs of waiting processes
-  int head;             // Index of the front of the queue
-  int tail;             // Index where the next process will be inserted
-  int wait_count;       // Number of processes currently in the queue
+  struct proc *queue[MAX_QUEUE]; 
+  int head;
+  int tail;
+  int wait_count;
 };
 
-// Global array of Israeli locks
 struct israeli_lock ilocks[MAX_ISRAELI_LOCKS];
 
-// Initialize the array of Israeli locks when the kernel starts
 void israeli_init(void) {
   for(int i = 0; i < MAX_ISRAELI_LOCKS; i++) {
     initlock(&ilocks[i].lk, "israeli_lock");
     ilocks[i].active = 0;
     ilocks[i].locked = 0;
     ilocks[i].favoritism = 0;
-    ilocks[i].owner_pid = 0;
+    ilocks[i].owner = 0;
     ilocks[i].head = 0;
     ilocks[i].tail = 0;
     ilocks[i].wait_count = 0;
@@ -176,20 +172,156 @@ sys_lcg_rand(void)
   return lcg_rand();
 }
 
-// Set the group ID of the current process
+// Process Groups Syscalls
 uint64 sys_setgid(void) {
   int gid;
-  
-  // Retrieve the first argument
   argint(0, &gid);
-  
-  // Set the gid for the current process
   myproc()->gid = gid;
-  
   return 0;
 }
 
-// Get the group ID of the current process
 uint64 sys_getgid(void) {
   return myproc()->gid;
+}
+
+// Lock Management Syscalls
+
+uint64 sys_israeli_create(void) {
+  int favoritism;
+  
+  // Call argint directly (it returns void in xv6-riscv)
+  argint(0, &favoritism);
+  
+  if(favoritism < 0 || favoritism > 100)
+    return -1;
+    
+  for(int i = 0; i < MAX_ISRAELI_LOCKS; i++) {
+    acquire(&ilocks[i].lk);
+    if(ilocks[i].active == 0) {
+      ilocks[i].active = 1;
+      ilocks[i].locked = 0;
+      ilocks[i].favoritism = favoritism;
+      ilocks[i].owner = 0;
+      ilocks[i].head = 0;
+      ilocks[i].tail = 0;
+      ilocks[i].wait_count = 0;
+      release(&ilocks[i].lk);
+      return i; 
+    }
+    release(&ilocks[i].lk);
+  }
+  return -1; 
+}
+
+uint64 sys_israeli_destroy(void) {
+  int lock_id;
+  argint(0, &lock_id);
+  
+  if(lock_id < 0 || lock_id >= MAX_ISRAELI_LOCKS)
+    return -1;
+    
+  acquire(&ilocks[lock_id].lk);
+  ilocks[lock_id].active = 0;
+  release(&ilocks[lock_id].lk);
+  return 0;
+}
+
+uint64 sys_israeli_acquire(void) {
+  int lock_id;
+  argint(0, &lock_id);
+  
+  if(lock_id < 0 || lock_id >= MAX_ISRAELI_LOCKS)
+    return -1;
+    
+  struct israeli_lock *ilock = &ilocks[lock_id];
+  struct proc *p = myproc();
+  
+  acquire(&ilock->lk);
+  if (ilock->active == 0) {
+    release(&ilock->lk);
+    return -1;
+  }
+  
+  // Enter the queue
+  ilock->queue[ilock->tail] = p;
+  ilock->tail = (ilock->tail + 1) % MAX_QUEUE;
+  ilock->wait_count++;
+  release(&ilock->lk);
+  
+  // Wait loop (Yielding, not busy-waiting)
+  while(1) {
+    acquire(&ilock->lk);
+    
+    if (ilock->locked == 0 && ilock->queue[ilock->head] == p) {
+      // Atomic locking as required
+      __sync_lock_test_and_set(&ilock->locked, 1);
+      ilock->owner = p;
+      
+      ilock->head = (ilock->head + 1) % MAX_QUEUE;
+      ilock->wait_count--;
+      
+      __sync_synchronize(); // Memory barrier
+      release(&ilock->lk);
+      break;
+    }
+    
+    release(&ilock->lk);
+    yield(); 
+  }
+  return 0;
+}
+
+uint64 sys_israeli_release(void) {
+  int lock_id;
+  argint(0, &lock_id);
+  
+  if(lock_id < 0 || lock_id >= MAX_ISRAELI_LOCKS)
+    return -1;
+    
+  struct israeli_lock *ilock = &ilocks[lock_id];
+  struct proc *p = myproc();
+  
+  acquire(&ilock->lk);
+  
+  if (ilock->locked == 0 || ilock->owner != p) {
+    release(&ilock->lk);
+    return -1; 
+  }
+  
+  if (ilock->wait_count > 0) {
+    int current_gid = p->gid;
+    int found_idx = -1;
+    
+    // Search the queue for the earliest process with the same gid
+    for(int i = 0; i < ilock->wait_count; i++) {
+      int idx = (ilock->head + i) % MAX_QUEUE;
+      if (ilock->queue[idx]->gid == current_gid) {
+        found_idx = idx;
+        break; 
+      }
+    }
+    
+    // Apply favoritism logic
+    if (found_idx != -1 && (lcg_rand() % 100) < ilock->favoritism) {
+      struct proc *favored_p = ilock->queue[found_idx];
+      
+      // Shift processes backward to move favored process to head
+      int curr = found_idx;
+      while(curr != ilock->head) {
+        int prev = (curr - 1 + MAX_QUEUE) % MAX_QUEUE;
+        ilock->queue[curr] = ilock->queue[prev];
+        curr = prev;
+      }
+      ilock->queue[ilock->head] = favored_p;
+    }
+  }
+  
+  ilock->owner = 0;
+  
+  // Atomic release as required
+  __sync_lock_release(&ilock->locked);
+  __sync_synchronize(); 
+  
+  release(&ilock->lk);
+  return 0;
 }

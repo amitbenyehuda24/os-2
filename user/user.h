@@ -43,3 +43,7 @@ int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 void setgid(int);
 int getgid(void);
+int israeli_create(int favoritism);
+int israeli_acquire(int lock_id);
+int israeli_release(int lock_id);
+int israeli_destroy(int lock_id);
